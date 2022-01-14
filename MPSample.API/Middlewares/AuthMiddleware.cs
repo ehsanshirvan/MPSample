@@ -1,7 +1,10 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using MPSample.API.Extentions;
 using MPSample.Common;
+using MPSample.Domain.Dto;
 using MPSample.Infrastructure.Repositories;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -29,7 +32,9 @@ namespace MPSample.API.Middlewares
         private bool _authRequest(HttpContext httpContext,UserRepository repo)
         {
 
-            if (httpContext.Request.Path.HasValue && httpContext.Request.Path.ToString().ToLower().Contains("swagger"))
+            var referer = httpContext.Request.Headers["Referer"];
+            if ((httpContext.Request.Path.HasValue && httpContext.Request.Path.ToString().ToLower().Contains("swagger")) ||
+                referer.ToString().ToLower().Contains("swagger"))                
                 return true;
 
             var user = httpContext.Request.Headers["user"].ToString().ToLower();
@@ -56,10 +61,9 @@ namespace MPSample.API.Middlewares
             }
             if (httpContext.Request.Path.HasValue && httpContext.Request.Method == "POST")
             {
-                var requestReader = new StreamReader(httpContext.Request.Body);
-          //      var requestContent = requestReader.ReadToEnd();
-
-
+              
+                List<TransactionDto> bodyContent = httpContext.GetRequestBodyContent<List<TransactionDto>>(System.Text.Encoding.UTF8);
+          
 
             }
 

@@ -27,7 +27,7 @@ namespace MPSample.API.Controllers
         }
 
         [HttpPost]
-        public IActionResult SaveTransaction([FromServices]TransactionService srvc,[FromBody] TransactionDto model)
+        public IActionResult SaveTransaction([FromServices]TransactionService srvc,[FromBody] List<TransactionDto> model)
         {
             _logger.LogInformation($"Input contains : {JsonConvert.SerializeObject(model)}");
 
@@ -39,6 +39,7 @@ namespace MPSample.API.Controllers
                 return Ok();
             return BadRequest(reslt.ErrorMessage);
         }
+
 
         
         [HttpGet]
