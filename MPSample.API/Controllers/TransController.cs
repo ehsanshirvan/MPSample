@@ -4,6 +4,7 @@ using MPSample.Domain;
 using MPSample.Domain.Dto;
 using MPSample.Domain.Entities;
 using MPSample.Domain.Services;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,7 +29,12 @@ namespace MPSample.API.Controllers
         [HttpPost]
         public IActionResult SaveTransaction([FromServices]TransactionService srvc,[FromBody] TransactionDto model)
         {
+            _logger.LogInformation($"Input contains : {JsonConvert.SerializeObject(model)}");
+
+
             var reslt = srvc.Save(model);
+            _logger.LogInformation($"SaveTransaction Result = {JsonConvert.SerializeObject(reslt)}");
+
             if (reslt.IsSuccess)
                 return Ok();
             return BadRequest(reslt.ErrorMessage);
@@ -38,6 +44,8 @@ namespace MPSample.API.Controllers
         [HttpGet]
         public IActionResult GetAllTransaction([FromServices] TransactionService srvc)
         {
+            _logger.LogInformation($"GetAllTransaction");
+
             var result = srvc.GetAll();
             return new JsonResult(result);
         }
@@ -46,6 +54,8 @@ namespace MPSample.API.Controllers
         [HttpGet("{merchant}")]
         public IActionResult GetByMerchantName([FromServices] TransactionService srvc,string merchant)
         {
+            _logger.LogInformation("GetByMerchantName");
+
             var result = srvc.GetByMerchantName(merchant);
             return new JsonResult(result);
         }
@@ -53,6 +63,8 @@ namespace MPSample.API.Controllers
         [Route("[action]/{merchant}")]
         public IActionResult GetFee([FromServices] TransactionService srvc, string merchant)
         {
+            _logger.LogInformation("GetFee");
+
             var result = srvc.GetFeeByMerchantName(merchant);
             return new JsonResult(result);
         }

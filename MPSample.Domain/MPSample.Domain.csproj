@@ -12,9 +12,4 @@
     <ProjectReference Include="..\MPSample.Common\MPSample.Common.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Contracts\" />
-    <Folder Include="Repositories\" />
-  </ItemGroup>
-
 </Project>

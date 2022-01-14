@@ -1,12 +1,11 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using MPSample.Common;
 using MPSample.Domain;
 using MPSample.Domain.Common;
@@ -14,23 +13,27 @@ using MPSample.Domain.Entities;
 using MPSample.Domain.Services;
 using MPSample.Infrastructure.DataAccess;
 using MPSample.Infrastructure.Repositories;
-using System;
+using NSwag;
+using NSwag.Generation.Processors.Security;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Security.Cryptography;
-using static MPSample.API.WholeAppSettings;
 
 namespace MPSample.API
 {
     public class Startup
     {
+        #region Properties
+        public IConfiguration Configuration { get; }
+
+        #endregion 
+
+        #region Public Methods
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
         }
 
-        public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
@@ -50,11 +53,58 @@ namespace MPSample.API
 
         }
 
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env,ILoggerFactory logger)
+        {
+            logger.AddFile("Logs/mylog-{Date}.txt");
+
+            app.ApplyUserKeyValidation();
+
+            if (env.IsDevelopment())
+            {
+                app.UseDeveloperExceptionPage();
+                app.UseStaticFiles();
+                app.UseDeveloperExceptionPage();
+                // app.UseSwagger();
+                //app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "MPSample.API v1"));
+            }
+
+            
+
+            app.UseRouting();
+
+            app.UseAuthorization();
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapControllers();
+            });
+
+            _configureSwagger(app);
+
+            _configureDateFormat(app);
+
+
+        }
+
+        private void _configureSwagger(IApplicationBuilder app)
+        {
+            // Enable middleware to serve generated Swagger as a JSON endpoint.
+            //app.UseSwagger();
+            //app.UseSwaggerUI();
+
+            // Enable middleware to serve swagger-ui (HTML, JS, CSS, etc.),
+            // specifying the Swagger JSON endpoint.
+            app.UseOpenApi();
+            app.UseSwaggerUi3();
+        }
+
+        #endregion
+
+        #region Private Methods
         private void _configureServices(IServiceCollection services)
         {
             services.AddControllers();
-            
-            services.AddDbContext<MPDbContext>(opt => opt.UseInMemoryDatabase("MPSampleDb"));
+            _configureDatabaseConnection(services);
             services.AddScoped<UnitOfWork>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<UserRepository>();
@@ -66,15 +116,42 @@ namespace MPSample.API
             var startupservice = serviceprovider.GetRequiredService<DataLoadStartup>();
             services.AddControllers()
             .AddJsonOptions(opts => opts.JsonSerializerOptions.PropertyNamingPolicy = null);
+            services.AddOpenApiDocument(option =>
+            {
+                option.Title = "MPSample.API";
+                option.Version = "1";
 
-            services.Configure<Logging>(Configuration.GetSection("Logging"));
-            services.Configure<CustomSettings>(Configuration.GetSection("CustomSettings"));
+                option.OperationProcessors.Add(new OperationSecurityScopeProcessor("JWT"));
+                option.DocumentProcessors.Add(new SecurityDefinitionAppender("user", new OpenApiSecurityScheme
+                {
+                    Type = OpenApiSecuritySchemeType.Basic,
+                    Name = "user",
+                    
+                    In = OpenApiSecurityApiKeyLocation.Header,
+                    //Description = "Type into the textbox: Bearer {your JWT token}."
+                }));
 
+                //option.DocumentProcessors.Add(new SecurityDefinitionAppender("password", new OpenApiSecurityScheme
+                //{
+                //    Type = OpenApiSecuritySchemeType.ApiKey,
+                //    Name = "password",
+                //    In = OpenApiSecurityApiKeyLocation.Header,
+                //   // Description = "Type into the textbox: Bearer {your JWT token}."
+                //}));
 
-            bool useInMemory =  (bool)Configuration.GetSection("CustomSettings").GetValue(typeof(bool), "UseInMemoryDatabase");
+            });
 
             _loadPrimitiveData(startupservice);
 
+        }
+
+        private void _configureDatabaseConnection(IServiceCollection services)
+        {
+            bool useInMemory = (bool)Configuration.GetSection("CustomSettings").GetValue(typeof(bool), "UseInMemoryDatabase");
+            if (useInMemory)
+                services.AddDbContext<MPDbContext>(opt => opt.UseInMemoryDatabase("MPSampleDb"));
+            else
+                services.AddDbContext<MPDbContext>(item => item.UseSqlServer(Configuration.GetConnectionString("conString")));
         }
 
         private void _configureDateFormat(IApplicationBuilder app)
@@ -90,28 +167,11 @@ namespace MPSample.API
 
         private void _loadPrimitiveData(DataLoadStartup startupservice)
         {
-            startupservice.Handle();
+            startupservice.Load();
         }
 
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
-        {
-            if (env.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-            }
+        #endregion
 
-            app.UseRouting();
-
-            app.UseAuthorization();
-
-            app.UseEndpoints(endpoints =>
-            {
-                endpoints.MapControllers();
-            });
-            _configureDateFormat(app);
-
-        }
     }
 
     public class DataLoadStartup
@@ -124,15 +184,22 @@ namespace MPSample.API
             
         }
 
-        public void Handle()
+        public void Load()
         {
+            var teslaUser = new User { UserName = "tesla", Password = "tesla".ComputeSha256Hash() };
+            var remaUser = new User { UserName = "rema", Password = "rema".ComputeSha256Hash() };
+                var mcdonaldUser = new User { UserName = "mcdonald", Password = "mcdonald".ComputeSha256Hash() };
 
-            var itemsToAdd = new List<User> {
-                new User { UserName = "tesla",Password = "tesla".ComputeSha256Hash()},
-                new User { UserName = "rema",Password = "rema".ComputeSha256Hash()},
-                new User { UserName = "mcdonald",Password = "mcdonald".ComputeSha256Hash()}
-            };
-            _unitOfWork.Users.AddRange(itemsToAdd);
+            var currentUsers = _unitOfWork.Users.GetAll();
+            if (!currentUsers.Any(x => x.UserName == teslaUser.UserName))
+                _unitOfWork.Users.Add(teslaUser);
+
+            if (!currentUsers.Any(x => x.UserName == remaUser.UserName))
+                _unitOfWork.Users.Add(remaUser);
+
+            if (!currentUsers.Any(x => x.UserName == mcdonaldUser.UserName))
+                _unitOfWork.Users.Add(mcdonaldUser);
+
             _unitOfWork.Commit();
         }
     }

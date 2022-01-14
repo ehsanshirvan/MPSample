@@ -12,10 +12,12 @@ namespace MPSample.Domain.Services
     public class TransactionService
     {
 
+        #region Fields
         private readonly IUnitOfWork _unitOfWork;
         private readonly IRepository<Transaction> _repository;
+        #endregion
 
-
+        #region Public Methods
         public TransactionService(IUnitOfWork unitOfWork, IRepository<Transaction> repo)
         {
             this._unitOfWork = unitOfWork;
@@ -90,9 +92,9 @@ namespace MPSample.Domain.Services
 
             return result;
         }
+        #endregion
 
-        
-
+        #region Private Methods
         private double _getExtraDiscount(List<Transaction> listData)
         {
             long tmpResult = 0;
@@ -132,5 +134,6 @@ namespace MPSample.Domain.Services
 
             return finalAmountToPay;
         }
+        #endregion
     }
 }
